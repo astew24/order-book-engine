@@ -112,11 +112,16 @@ class BookStats:
 # ---------------------------------------------------------------------------
 
 class LimitOrderBook:
-    """
-    Price-time priority limit order book.
+    """Price-time priority limit order book.
 
     bids: SortedDict with negated prices as keys so peekitem(0) → best bid.
     asks: SortedDict with positive prices as keys so peekitem(0) → best ask.
+
+    Order of operations for a new order:
+      1. Market orders sweep the opposite side until filled or the book is empty.
+      2. Limit orders match against resting orders at the same or better price,
+         then rest at their limit price if unfilled quantity remains.
+      3. Cancels remove the resting order by order_id in O(1).
     """
 
     def __init__(self, symbol: str = "AAAA"):
