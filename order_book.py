@@ -158,8 +158,10 @@ class LimitOrderBook:
         raise ValueError(f"Unknown order type: {order.order_type}")
 
     def cancel(self, order_id: str) -> bool:
-        """
-        Cancel a resting limit order. Returns True if found and removed.
+        """Cancel a resting limit order by order_id. Returns True if found and removed.
+
+        O(1) lookup via _orders dict, then O(k) scan of the price-level deque where
+        k is the number of orders at that level — usually very small in practice.
         """
         if order_id not in self._orders:
             return False
