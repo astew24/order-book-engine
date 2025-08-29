@@ -91,6 +91,7 @@ def run_scenario(
 
 
 def _fmt(n: float) -> str:
+    """Format a large number with M/K suffix for the benchmark report."""
     if n >= 1_000_000:
         return f"{n/1_000_000:.2f}M"
     if n >= 1_000:
