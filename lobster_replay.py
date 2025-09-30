@@ -46,8 +46,8 @@ from order_book import LimitOrderBook, Order, OrderType, Side, Fill
 MSG_SUBMIT_LIMIT   = 1
 MSG_CANCEL_PARTIAL = 2
 MSG_CANCEL_FULL    = 3
-MSG_EXEC_VISIBLE   = 4
-MSG_EXEC_HIDDEN    = 5
+MSG_EXEC_VISIBLE   = 4   # execution against a visible resting order
+MSG_EXEC_HIDDEN    = 5   # execution against a hidden/dark order (treated same as visible here)
 MSG_HALT           = 7
 
 
