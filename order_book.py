@@ -140,7 +140,11 @@ class LimitOrderBook:
     # ------------------------------------------------------------------ #
 
     def add_fill_callback(self, fn):
-        """Register a callable(Fill) that fires on each match."""
+        """Register a callable(Fill) that fires on each match.
+
+        Multiple callbacks can be registered — they're called in registration order.
+        Useful for streaming fills to a downstream consumer without polling self.fills.
+        """
         self._fill_callbacks.append(fn)
 
     def submit(self, order: Order) -> list[Fill]:
