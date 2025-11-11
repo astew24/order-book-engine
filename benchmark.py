@@ -46,6 +46,7 @@ def run_scenario(
     config: SimConfig,
     warmup: bool = False,
 ) -> BenchmarkResult:
+    """Run `runs` timed passes of `orders` simulated orders and return aggregate stats."""
     if warmup:
         # Throwaway pass so Python's bytecode cache and branch predictor are warm
         # before the first timed run. Reduces cold-start noise on short benchmarks.
