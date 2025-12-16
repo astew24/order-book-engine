@@ -101,8 +101,8 @@ class BookStats:
     best_bid: Optional[float]
     best_ask: Optional[float]
     spread: Optional[float]
-    bid_depth: int           # number of price levels
-    ask_depth: int
+    bid_depth: int           # number of distinct price levels on bid side
+    ask_depth: int           # number of distinct price levels on ask side
     total_bid_qty: float
     total_ask_qty: float
 
