@@ -148,10 +148,7 @@ class LimitOrderBook:
         self._fill_callbacks.append(fn)
 
     def submit(self, order: Order) -> list[Fill]:
-        """
-        Route an order to the appropriate handler.
-        Returns a list of Fill events generated.
-        """
+        """Route an order to the appropriate handler and return generated fills."""
         if order.order_type == OrderType.CANCEL:
             self.cancel(order.order_id)
             return []
