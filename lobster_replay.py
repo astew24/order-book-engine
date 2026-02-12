@@ -48,6 +48,8 @@ MSG_CANCEL_PARTIAL = 2
 MSG_CANCEL_FULL    = 3
 MSG_EXEC_VISIBLE   = 4   # execution against a visible resting order
 MSG_EXEC_HIDDEN    = 5   # execution against a hidden/dark order (treated same as visible here)
+# type 7 is a trading halt — we skip it and continue replaying
+MSG_TRADING_HALT   = 7
 MSG_HALT           = 7
 
 
