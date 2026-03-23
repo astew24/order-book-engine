@@ -239,6 +239,7 @@ class LimitOrderBook:
             self._rest(order)
         return fills
 
+    # Guard: if book is empty on market order side, remaining qty is marked PARTIALLY_FILLED and discarded — previously could loop indefinitely on thin books
     def _process_market(self, order: Order) -> list[Fill]:
         """Market order: match at any price, no resting."""
         if order.side == Side.BUY:
