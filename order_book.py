@@ -222,6 +222,10 @@ class LimitOrderBook:
             for k, q in self._asks.items()
         ]
 
+    def depth(self, levels: int = 5) -> dict:
+        """Return top N bid and ask levels as a dict."""
+        return {"bids": self.bid_levels()[:levels], "asks": self.ask_levels()[:levels]}
+
     # ------------------------------------------------------------------ #
     # Internal matching                                                    #
     # ------------------------------------------------------------------ #
