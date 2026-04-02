@@ -52,7 +52,7 @@ def run_scenario(
         book = LimitOrderBook()
         sim = OrderFlowSimulator(config)
 
-        # Pre-generate orders to exclude RNG time from benchmark
+        # Orders are pre-generated before the timed section so RNG overhead doesn't pollute throughput measurements
         order_list = list(sim.stream(orders))
         fills_seen = 0
 
