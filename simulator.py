@@ -83,6 +83,18 @@ class OrderFlowSimulator:
     def mid_price(self) -> float:
         return self._mid
 
+    def reset(self) -> None:
+        """Reset simulator state — mid-price, order counter, and open order list.
+
+        Useful for running multiple independent simulation runs on the same
+        config without creating a new instance each time.
+        """
+        self._rng = np.random.default_rng(self.config.seed)
+        self._random = random.Random(self.config.seed)
+        self._mid = self.config.initial_mid
+        self._open_order_ids = []
+        self._order_counter = 0
+
     def _next_order_id(self) -> str:
         self._order_counter += 1
         return f"SIM-{self._order_counter:08d}"
@@ -105,12 +117,13 @@ class OrderFlowSimulator:
         # Decide order type
         r = self._random.random()
         if r < cfg.cancel_frac and self._open_order_ids:
-            # Cancel a random resting order (represented as an order with CANCEL type)
+            # Cancel a random resting order (represented as an order with CANCEL type).
+            # The cancel carries the target's order_id so the book can find and remove it.
             target_id = self._random.choice(self._open_order_ids)
             self._open_order_ids.remove(target_id)
             return Order(
-                order_id=self._next_order_id(),
-                side=Side.BUY,          # irrelevant for cancel
+                order_id=target_id,     # cancel by referencing the original order_id
+                side=Side.BUY,          # side is irrelevant for cancel
                 order_type=OrderType.CANCEL,
                 price=None,
                 quantity=0,
