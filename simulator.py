@@ -46,6 +46,9 @@ class SimConfig:
     market_frac: float = 0.20         # fraction of orders that are market orders
     cancel_frac: float = 0.15         # fraction of new order slots that are cancels
 
+    # Symbol
+    symbol: str = "AAAA"
+
     # Reproducibility
     seed: int | None = None
 
@@ -114,7 +117,7 @@ class OrderFlowSimulator:
 
         if self._random.random() < cfg.market_frac:
             qty = self._rng.uniform(cfg.min_qty, cfg.max_qty)
-            return Order.market(side, qty=round(qty, 2), order_id=self._next_order_id())
+            return Order.market(side, qty=round(qty, 2), order_id=self._next_order_id(), symbol=cfg.symbol)
 
         # Limit order — price centered around mid ± half-spread
         half_spread = (cfg.spread_ticks / 2) * cfg.tick_size
@@ -129,7 +132,7 @@ class OrderFlowSimulator:
 
         qty = round(self._rng.uniform(cfg.min_qty, cfg.max_qty), 2)
         oid = self._next_order_id()
-        order = Order.limit(side, price=price, qty=qty, order_id=oid)
+        order = Order.limit(side, price=price, qty=qty, order_id=oid, symbol=cfg.symbol)
         self._open_order_ids.append(oid)
         # Keep list manageable
         if len(self._open_order_ids) > 5000:
