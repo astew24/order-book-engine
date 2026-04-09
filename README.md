@@ -56,6 +56,8 @@ High cancel rate (50%)          100000       1.88M       42.0K      1.83M      1
 Tight spread (1 tick)           100000       1.41M       37.2K      1.36M      1.46M        709   31,902
 ```
 
+_Benchmarked on Apple M2 Pro, Python 3.11, sortedcontainers 2.4.0_
+
 ### Simulate order flow
 
 ```python
