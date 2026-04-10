@@ -108,7 +108,7 @@ def parse_lobster_csv(path: Path) -> list[LobsterMessage]:
 # Replay engine
 # ---------------------------------------------------------------------------
 
-def replay(messages: list[LobsterMessage], verbose: bool = False) -> ValidationResult:
+def replay(messages: list[LobsterMessage], verbose: bool = False, qty_tol: float = 0.05) -> ValidationResult:
     book = LimitOrderBook()
 
     limit_submitted = 0
@@ -157,7 +157,7 @@ def replay(messages: list[LobsterMessage], verbose: bool = False) -> ValidationR
         m.size for m in messages if m.msg_type in (MSG_EXEC_VISIBLE, MSG_EXEC_HIDDEN)
     )
     total_our_fill_qty = sum(int(f.quantity) for f in book.fills)
-    matched = 1 if abs(total_lobster_exec_qty - total_our_fill_qty) / max(total_lobster_exec_qty, 1) < 0.05 else 0
+    matched = 1 if abs(total_lobster_exec_qty - total_our_fill_qty) / max(total_lobster_exec_qty, 1) < qty_tol else 0
 
     return ValidationResult(
         total_messages=len(messages),
@@ -246,6 +246,8 @@ def main():
     parser.add_argument("--sample-path", type=Path, default=Path("sample_lobster.csv"))
     parser.add_argument("--n", type=int, default=1000, help="Messages to generate (--generate mode)")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--qty-tol", type=float, default=0.05,
+                        help="Fill quantity match tolerance as a fraction (default: 0.05 = 5%%)")
     args = parser.parse_args()
 
     csv_path = args.file
@@ -260,7 +262,7 @@ def main():
     print(f"[replay] Parsing {csv_path} …")
     messages = parse_lobster_csv(csv_path)
     print(f"[replay] Loaded {len(messages):,} messages. Running replay …")
-    result = replay(messages, verbose=args.verbose)
+    result = replay(messages, verbose=args.verbose, qty_tol=args.qty_tol)
     print_result(result)
 
 
