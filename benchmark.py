@@ -44,7 +44,16 @@ def run_scenario(
     orders: int,
     runs: int,
     config: SimConfig,
+    warmup: bool = False,
 ) -> BenchmarkResult:
+    if warmup:
+        # Throwaway pass so Python's bytecode cache and branch predictor are warm
+        # before the first timed run. Reduces cold-start noise on short benchmarks.
+        _book = LimitOrderBook()
+        _sim = OrderFlowSimulator(config)
+        for _order in _sim.stream(min(orders, 1_000)):
+            _book.submit(_order)
+
     ops_list: list[float] = []
     fills_last = 0
 
@@ -141,6 +150,8 @@ def main():
     parser.add_argument("--orders", type=int, default=100_000, help="Orders per run")
     parser.add_argument("--runs", type=int, default=3, help="Runs per scenario")
     parser.add_argument("--scenario", type=str, default=None, help="Run a single scenario by partial name match")
+    parser.add_argument("--warmup", action="store_true", default=False,
+                        help="Run a throwaway warm-up pass before timing to eliminate cold-start noise")
     args = parser.parse_args()
 
     scenarios = SCENARIOS
@@ -153,10 +164,12 @@ def main():
             return
 
     print(f"\nRunning {len(scenarios)} scenario(s) × {args.runs} runs × {args.orders:,} orders each …")
+    if args.warmup:
+        print("  (warmup pass enabled)")
     results = []
     for name, config in scenarios:
         print(f"  [{name}] …", end="", flush=True)
-        r = run_scenario(name, args.orders, args.runs, config)
+        r = run_scenario(name, args.orders, args.runs, config, warmup=args.warmup)
         results.append(r)
         print(f" {_fmt(r.mean_ops)} ops/s")
 
