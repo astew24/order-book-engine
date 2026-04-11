@@ -1,5 +1,7 @@
 # order-book-engine
 
+**[Live Demo →](https://astew24.github.io/order-book-engine/)**
+
 ## What this does
 
 `order-book-engine` is a **high-performance limit order book (LOB) matching engine** built entirely from scratch in Python — no external matching engine libraries. It models the core trading infrastructure found at exchanges like NASDAQ, NYSE, and CME:
