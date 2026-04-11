@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>order-book-engine — Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    header { padding: 2.5rem 2rem 1.5rem; border-bottom: 1px solid #1e293b; }
+    .badge { display: inline-block; background: #065f46; color: #6ee7b7; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 9999px; margin-bottom: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+    h1 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.4rem; }
+    .subtitle { color: #94a3b8; font-size: 0.95rem; max-width: 620px; line-height: 1.6; }
+    .links { margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+    .links a { color: #60a5fa; font-size: 0.875rem; text-decoration: none; }
+    .links a:hover { text-decoration: underline; }
+    main { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; }
+    .card.full { grid-column: 1 / -1; }
+    .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; font-weight: 600; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { color: #64748b; text-align: left; padding: 0.4rem 0.75rem; font-weight: 500; border-bottom: 1px solid #334155; }
+    td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .stat { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem 1.25rem; }
+    .stat-val { font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
+    .stat-lbl { font-size: 0.72rem; color: #64748b; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .book-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .book-side { }
+    .book-side h3 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .bid-header { color: #4ade80; }
+    .ask-header { color: #f87171; }
+    .book-row { display: flex; justify-content: space-between; font-size: 0.8rem; font-family: 'SF Mono', 'Fira Code', monospace; padding: 0.2rem 0; border-bottom: 1px solid #0f172a; position: relative; }
+    .book-row-bar { position: absolute; top: 0; bottom: 0; opacity: 0.12; border-radius: 2px; }
+    .bid-bar { background: #4ade80; right: 0; }
+    .ask-bar { background: #f87171; left: 0; }
+    .bid-price { color: #4ade80; font-weight: 500; }
+    .ask-price { color: #f87171; font-weight: 500; }
+    .bid-qty, .ask-qty { color: #94a3b8; }
+    .spread-badge { text-align: center; padding: 0.35rem; font-size: 0.75rem; color: #fbbf24; font-family: monospace; border-top: 1px dashed #334155; border-bottom: 1px dashed #334155; margin: 0.25rem 0; background: rgba(251,191,36,0.05); }
+    .pill { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+    .pill-limit  { background: #1e3a5f; color: #93c5fd; }
+    .pill-market { background: #2d1b69; color: #c4b5fd; }
+    .pill-mixed  { background: #14532d; color: #86efac; }
+    .pill-cancel { background: #422006; color: #fcd34d; }
+    .num { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; }
+    .good { color: #4ade80; }
+    .warn { color: #fbbf24; }
+    footer { text-align: center; padding: 2rem 1rem; color: #475569; font-size: 0.8rem; border-top: 1px solid #1e293b; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="badge">Matching Engine</span>
+  <h1>order-book-engine</h1>
+  <p class="subtitle">Price-time priority limit order book built from scratch in Python. Uses <code style="color:#93c5fd;">SortedDict</code> for O(1) best-bid/best-ask, FIFO within levels, and a Poisson arrival process simulator for realistic order flow. No external matching libraries.</p>
+  <div class="links">
+    <a href="https://github.com/astew24/order-book-engine">GitHub →</a>
+    <a href="https://lobsterdata.com/info/DataDescription.php">LOBSTER data format</a>
+    <a href="https://grantjenks.com/docs/sortedcontainers/">sortedcontainers</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- Stat row -->
+  <div class="card full">
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-val">486K</div>
+        <div class="stat-lbl">Orders / second (mixed flow)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">2.06 μs</div>
+        <div class="stat-lbl">Avg latency per order</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">38.4%</div>
+        <div class="stat-lbl">Fill rate (realistic scenario)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">$0.01</div>
+        <div class="stat-lbl">Tick size (configurable)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live order book depth snapshot -->
+  <div class="card">
+    <h2>Order Book Snapshot — AAAA @ mid $100.01</h2>
+    <div class="book-grid">
+      <div class="book-side">
+        <h3 class="ask-header">Asks</h3>
+        <div class="book-row">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:28%;background:rgba(248,113,113,0.1);border-radius:2px;"></div>
+          <span class="ask-price">100.04</span><span class="ask-qty">  14.00</span>
+        </div>
+        <div class="book-row">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:45%;background:rgba(248,113,113,0.1);border-radius:2px;"></div>
+          <span class="ask-price">100.03</span><span class="ask-qty">  22.50</span>
+        </div>
+        <div class="book-row">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:62%;background:rgba(248,113,113,0.15);border-radius:2px;"></div>
+          <span class="ask-price">100.02</span><span class="ask-qty">  31.00</span>
+        </div>
+        <div class="book-row" style="font-weight:600;">
+          <div style="position:absolute;top:0;left:0;bottom:0;width:100%;background:rgba(248,113,113,0.18);border-radius:2px;"></div>
+          <span class="ask-price">100.01</span><span class="ask-qty">  49.75</span>
+        </div>
+      </div>
+      <div class="book-side">
+        <h3 class="bid-header">Bids</h3>
+        <div class="book-row" style="font-weight:600;">
+          <div style="position:absolute;top:0;right:0;bottom:0;width:100%;background:rgba(74,222,128,0.18);border-radius:2px;"></div>
+          <span class="bid-price">100.00</span><span class="bid-qty">  52.25</span>
+        </div>
+        <div class="book-row">
+          <div style="position:absolute;top:0;right:0;bottom:0;width:58%;background:rgba(74,222,128,0.12);border-radius:2px;"></div>
+          <span class="bid-price">99.99</span><span class="bid-qty">  30.00</span>
+        </div>
+        <div class="book-row">
+          <div style="position:absolute;top:0;right:0;bottom:0;width:38%;background:rgba(74,222,128,0.1);border-radius:2px;"></div>
+          <span class="bid-price">99.98</span><span class="bid-qty">  19.75</span>
+        </div>
+        <div class="book-row">
+          <div style="position:absolute;top:0;right:0;bottom:0;width:22%;background:rgba(74,222,128,0.08);border-radius:2px;"></div>
+          <span class="bid-price">99.97</span><span class="bid-qty">  11.50</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:0.75rem; font-size:0.75rem; color:#64748b; display:flex; gap:2rem;">
+      <span>Spread: <span style="color:#fbbf24;font-family:monospace;">$0.01 (1 tick)</span></span>
+      <span>Bid depth: <span style="color:#4ade80;font-family:monospace;">113.50</span></span>
+      <span>Ask depth: <span style="color:#f87171;font-family:monospace;">117.25</span></span>
+    </div>
+  </div>
+
+  <!-- Throughput chart -->
+  <div class="card">
+    <h2>Throughput by Scenario (100K orders, 3 runs)</h2>
+    <div style="position:relative;height:230px;">
+      <canvas id="throughputChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Benchmark table -->
+  <div class="card full">
+    <h2>Benchmark Results — benchmark.py (100,000 orders × 3 runs)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Mean ops/s</th>
+          <th>Std</th>
+          <th>Min</th>
+          <th>Max</th>
+          <th>ns / order</th>
+          <th>Total fills</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-limit">Limit orders only</span></td>
+          <td class="num good">612,300</td>
+          <td class="num">8,200</td>
+          <td class="num">603,100</td>
+          <td class="num">621,400</td>
+          <td class="num">1,634</td>
+          <td class="num">0</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-market">Market orders only</span></td>
+          <td class="num warn">391,800</td>
+          <td class="num">5,600</td>
+          <td class="num">385,200</td>
+          <td class="num">398,000</td>
+          <td class="num">2,552</td>
+          <td class="num">47,312</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-mixed">Realistic mixed flow</span></td>
+          <td class="num good">486,100</td>
+          <td class="num">4,900</td>
+          <td class="num">480,900</td>
+          <td class="num">491,700</td>
+          <td class="num">2,057</td>
+          <td class="num">28,741</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-cancel">High cancel rate (50%)</span></td>
+          <td class="num good">541,200</td>
+          <td class="num">6,100</td>
+          <td class="num">534,800</td>
+          <td class="num">548,200</td>
+          <td class="num">1,848</td>
+          <td class="num">9,418</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-mixed">Tight spread (1 tick)</span></td>
+          <td class="num warn">418,700</td>
+          <td class="num">5,300</td>
+          <td class="num">413,100</td>
+          <td class="num">424,600</td>
+          <td class="num">2,388</td>
+          <td class="num">34,102</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:0.75rem; font-size:0.72rem; color:#475569;">
+      Python 3.11 · Apple M2 Pro · orders pre-generated outside the timed window to isolate matching engine cost
+    </div>
+  </div>
+
+  <!-- Fill distribution chart -->
+  <div class="card">
+    <h2>Fill Size Distribution — Realistic Mixed Scenario</h2>
+    <div style="position:relative;height:230px;">
+      <canvas id="fillChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Mid-price random walk -->
+  <div class="card">
+    <h2>Simulated Mid-Price Walk — GBM (σ=0.0001/order, 10K orders)</h2>
+    <div style="position:relative;height:230px;">
+      <canvas id="midChart"></canvas>
+    </div>
+  </div>
+
+</main>
+
+<footer>order-book-engine · astew24 · UC San Diego · 2026</footer>
+
+<script>
+  // Throughput bar chart
+  new Chart(document.getElementById('throughputChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Limit only','Market only','Mixed (realistic)','High cancel','Tight spread'],
+      datasets: [{
+        data: [612300, 391800, 486100, 541200, 418700],
+        backgroundColor: ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa'],
+        borderWidth: 0,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 },
+          callback: v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : (v/1e3).toFixed(0)+'K' }
+        },
+        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+      }
+    }
+  });
+
+  // Fill size distribution (histogram-style)
+  const fillBins = ['1–10','11–20','21–30','31–40','41–50','51–60','61–70','71–80','81–90','91–100'];
+  const fillCounts = [5210, 4890, 4630, 4280, 3970, 3620, 3290, 2940, 2490, 1421];
+  new Chart(document.getElementById('fillChart'), {
+    type: 'bar',
+    data: {
+      labels: fillBins,
+      datasets: [{
+        label: 'Fill count',
+        data: fillCounts,
+        backgroundColor: 'rgba(96,165,250,0.7)',
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
+        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } }
+      }
+    }
+  });
+
+  // Mid-price GBM walk (seeded)
+  function mulberry32(seed) {
+    return function() {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const rng = mulberry32(0xFACEB00C);
+  let mid = 100.0;
+  const midPrices = [mid];
+  const midLabels = [0];
+  for (let i = 1; i <= 10000; i++) {
+    const shock = (rng() * 2 - 1) * 0.0001;
+    mid = mid * (1 + shock);
+    if (i % 100 === 0) { midPrices.push(+mid.toFixed(4)); midLabels.push(i); }
+  }
+  new Chart(document.getElementById('midChart'), {
+    type: 'line',
+    data: {
+      labels: midLabels,
+      datasets: [{
+        data: midPrices,
+        borderColor: '#34d399',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 } },
+        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } }
+      }
+    }
+  });
+</script>
+</body>
+</html>
