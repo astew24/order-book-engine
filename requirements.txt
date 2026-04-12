@@ -1,0 +1,12 @@
+# order-book-engine dependencies
+
+# Core data structure (SortedDict for O(1) best-bid/ask)
+sortedcontainers>=2.4.0
+
+# Numerical simulation (Poisson arrival, GBM)
+numpy>=1.26.0
+
+# No external matching engine libraries — engine is built from scratch.
+# The following are optional for extended analysis:
+# pandas>=2.2.0   # for LOBSTER CSV analysis
+# matplotlib>=3.8  # for visualising order flow
