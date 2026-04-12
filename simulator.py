@@ -8,6 +8,9 @@ Models a realistic order stream:
   - Market order fraction controls fraction of aggressive orders
   - Cancellations are generated for a fraction of open resting orders
   - Mid-price follows a geometric Brownian motion random walk
+
+Note: set SimConfig.seed for fully reproducible order streams; useful for
+deterministic benchmark comparisons and unit tests against known fills.
 """
 
 from __future__ import annotations
