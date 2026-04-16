@@ -1,330 +1,1065 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>order-book-engine — Demo</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-    header { padding: 2.5rem 2rem 1.5rem; border-bottom: 1px solid #1e293b; }
-    .badge { display: inline-block; background: #065f46; color: #6ee7b7; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 9999px; margin-bottom: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
-    h1 { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.4rem; }
-    .subtitle { color: #94a3b8; font-size: 0.95rem; max-width: 620px; line-height: 1.6; }
-    .links { margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; }
-    .links a { color: #60a5fa; font-size: 0.875rem; text-decoration: none; }
-    .links a:hover { text-decoration: underline; }
-    main { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; }
-    .card.full { grid-column: 1 / -1; }
-    .card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; font-weight: 600; margin-bottom: 1rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-    th { color: #64748b; text-align: left; padding: 0.4rem 0.75rem; font-weight: 500; border-bottom: 1px solid #334155; }
-    td { padding: 0.55rem 0.75rem; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
-    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-    .stat { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem 1.25rem; }
-    .stat-val { font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em; }
-    .stat-lbl { font-size: 0.72rem; color: #64748b; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    .book-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    .book-side { }
-    .book-side h3 { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
-    .bid-header { color: #4ade80; }
-    .ask-header { color: #f87171; }
-    .book-row { display: flex; justify-content: space-between; font-size: 0.8rem; font-family: 'SF Mono', 'Fira Code', monospace; padding: 0.2rem 0; border-bottom: 1px solid #0f172a; position: relative; }
-    .book-row-bar { position: absolute; top: 0; bottom: 0; opacity: 0.12; border-radius: 2px; }
-    .bid-bar { background: #4ade80; right: 0; }
-    .ask-bar { background: #f87171; left: 0; }
-    .bid-price { color: #4ade80; font-weight: 500; }
-    .ask-price { color: #f87171; font-weight: 500; }
-    .bid-qty, .ask-qty { color: #94a3b8; }
-    .spread-badge { text-align: center; padding: 0.35rem; font-size: 0.75rem; color: #fbbf24; font-family: monospace; border-top: 1px dashed #334155; border-bottom: 1px dashed #334155; margin: 0.25rem 0; background: rgba(251,191,36,0.05); }
-    .pill { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
-    .pill-limit  { background: #1e3a5f; color: #93c5fd; }
-    .pill-market { background: #2d1b69; color: #c4b5fd; }
-    .pill-mixed  { background: #14532d; color: #86efac; }
-    .pill-cancel { background: #422006; color: #fcd34d; }
-    .num { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; }
-    .good { color: #4ade80; }
-    .warn { color: #fbbf24; }
-    footer { text-align: center; padding: 2rem 1rem; color: #475569; font-size: 0.8rem; border-top: 1px solid #1e293b; margin-top: 1rem; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>order-book-engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #08090d;
+  --bg1: #0c0e14;
+  --bg2: #10131a;
+  --grid: #141820;
+  --border: #1a2030;
+  --bid: #00c853;
+  --bid-dim: rgba(0,200,83,0.12);
+  --bid-mid: rgba(0,200,83,0.22);
+  --ask: #ff1744;
+  --ask-dim: rgba(255,23,68,0.12);
+  --ask-mid: rgba(255,23,68,0.22);
+  --amber: #d4a017;
+  --text: #8090a8;
+  --text-bright: #c8d4e0;
+  --text-dim: #3a4558;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+body { opacity: 0; animation: fi 0.3s ease forwards; }
+@keyframes fi { to { opacity: 1; } }
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hdr-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+.hdr-sep { color: var(--text-dim); }
+
+.hdr-stat {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.hdr-stat span { color: var(--text-dim); margin-right: 4px; }
+
+.hdr-links { margin-left: auto; display: flex; gap: 12px; }
+.hdr-links a {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.hdr-links a:hover { color: var(--text); }
+
+/* Main layout */
+.layout {
+  display: grid;
+  grid-template-columns: 380px 1fr 220px;
+  grid-template-rows: 1fr auto;
+  gap: 1px;
+  background: var(--border);
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pane {
+  background: var(--bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 6px 10px 5px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Order book */
+#book-pane {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.book-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.book-header {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--grid);
+  flex-shrink: 0;
+}
+
+.book-col-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.book-col-label.right { text-align: right; }
+
+.asks-container, .bids-container {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.asks-container { display: flex; flex-direction: column; justify-content: flex-end; }
+.bids-container { display: flex; flex-direction: column; }
+
+.book-row {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  padding: 1px 10px;
+  height: 19px;
+  align-items: center;
+  position: relative;
+  cursor: default;
+}
+
+.book-row:hover { background: rgba(255,255,255,0.02); }
+
+.depth-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.ask-depth { right: 0; background: var(--ask-dim); }
+.bid-depth { right: 0; background: var(--bid-dim); }
+
+.book-price {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  z-index: 1;
+  position: relative;
+}
+
+.ask-price { color: var(--ask); }
+.bid-price { color: var(--bid); }
+
+.book-qty, .book-cum {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: right;
+  color: var(--text);
+  z-index: 1;
+  position: relative;
+}
+
+.book-cum { color: var(--text-dim); }
+
+.spread-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 3px 10px;
+  border-top: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid);
+  background: var(--bg1);
+  flex-shrink: 0;
+}
+
+.spread-val {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+}
+
+.spread-lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* Stats + controls */
+#stats-pane {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.stat-cell {
+  background: var(--bg1);
+  padding: 10px 12px;
+}
+
+.stat-val {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-bright);
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+
+.stat-val.bid-color { color: var(--bid); }
+.stat-val.ask-color { color: var(--ask); }
+.stat-val.amber-color { color: var(--amber); }
+
+.stat-lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 20px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.ctrl-val {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-bright);
+  min-width: 40px;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100px;
+  height: 3px;
+  background: var(--border);
+  outline: none;
+  border-radius: 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--amber);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.btn-inject {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: none;
+  border: 1px solid var(--ask);
+  color: var(--ask);
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.1s;
+}
+
+.btn-inject:hover { background: rgba(255,23,68,0.1); }
+.btn-inject:active { background: rgba(255,23,68,0.2); }
+
+/* Price chart */
+.chart-pane {
+  grid-column: 2;
+  grid-row: 2;
+  height: 110px;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.chart-pane canvas { display: block; }
+
+/* Trade tape */
+#tape-pane {
+  grid-column: 3;
+  grid-row: 1 / 3;
+}
+
+.tape-header {
+  display: grid;
+  grid-template-columns: 55px 55px 55px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--grid);
+  flex-shrink: 0;
+}
+
+.tape-col {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.tape-scroll {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.tape-row {
+  display: grid;
+  grid-template-columns: 55px 55px 55px;
+  padding: 1px 8px;
+  height: 18px;
+  align-items: center;
+}
+
+.tape-time {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.tape-price {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: right;
+}
+
+.tape-qty {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: right;
+}
+
+.tape-buy .tape-price { color: var(--bid); }
+.tape-sell .tape-price { color: var(--ask); }
+.tape-buy .tape-qty { color: rgba(0,200,83,0.6); }
+.tape-sell .tape-qty { color: rgba(255,23,68,0.6); }
+</style>
 </head>
 <body>
 
 <header>
-  <span class="badge">Matching Engine</span>
-  <h1>order-book-engine</h1>
-  <p class="subtitle">Price-time priority limit order book built from scratch in Python. Uses <code style="color:#93c5fd;">SortedDict</code> for O(1) best-bid/best-ask, FIFO within levels, and a Poisson arrival process simulator for realistic order flow. No external matching libraries.</p>
-  <div class="links">
-    <a href="https://github.com/astew24/order-book-engine">GitHub →</a>
-    <a href="https://lobsterdata.com/info/DataDescription.php">LOBSTER data format</a>
-    <a href="https://grantjenks.com/docs/sortedcontainers/">sortedcontainers</a>
-  </div>
+  <span class="hdr-title">order-book-engine</span>
+  <span class="hdr-sep">/</span>
+  <span class="hdr-stat"><span>mid</span><span id="hdr-mid">100.00</span></span>
+  <span class="hdr-stat"><span>spread</span><span id="hdr-spread">0.01</span></span>
+  <span class="hdr-stat"><span>fills</span><span id="hdr-fills">0</span></span>
+  <span class="hdr-stat"><span>ops/s</span><span id="hdr-ops">0</span></span>
+  <nav class="hdr-links">
+    <a href="https://github.com/astew24/order-book-engine">github</a>
+    <a href="https://lobsterdata.com/info/DataDescription.php">LOBSTER</a>
+  </nav>
 </header>
 
-<main>
+<div class="layout">
 
-  <!-- Stat row -->
-  <div class="card full">
-    <div class="stat-grid">
-      <div class="stat">
-        <div class="stat-val">486K</div>
-        <div class="stat-lbl">Orders / second (mixed flow)</div>
+  <!-- Order Book -->
+  <div class="pane" id="book-pane">
+    <div class="pane-label">L2 order book &mdash; order_book.py</div>
+    <div class="book-container">
+      <div class="book-header">
+        <div class="book-col-label">price</div>
+        <div class="book-col-label right">qty</div>
+        <div class="book-col-label right">cum</div>
       </div>
-      <div class="stat">
-        <div class="stat-val">2.06 μs</div>
-        <div class="stat-lbl">Avg latency per order</div>
+      <div class="asks-container" id="asks-container"></div>
+      <div class="spread-row">
+        <span class="spread-lbl">spread</span>
+        <span class="spread-val" id="spread-val">0.01</span>
+        <span class="spread-lbl">mid</span>
+        <span class="spread-val" id="mid-val">100.00</span>
+        <span class="spread-lbl">bps</span>
+        <span class="spread-val" id="bps-val">1.0</span>
       </div>
-      <div class="stat">
-        <div class="stat-val">38.4%</div>
-        <div class="stat-lbl">Fill rate (realistic scenario)</div>
-      </div>
-      <div class="stat">
-        <div class="stat-val">$0.01</div>
-        <div class="stat-lbl">Tick size (configurable)</div>
-      </div>
+      <div class="bids-container" id="bids-container"></div>
     </div>
   </div>
 
-  <!-- Live order book depth snapshot -->
-  <div class="card">
-    <h2>Order Book Snapshot — AAAA @ mid $100.01</h2>
-    <div class="book-grid">
-      <div class="book-side">
-        <h3 class="ask-header">Asks</h3>
-        <div class="book-row">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:28%;background:rgba(248,113,113,0.1);border-radius:2px;"></div>
-          <span class="ask-price">100.04</span><span class="ask-qty">  14.00</span>
-        </div>
-        <div class="book-row">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:45%;background:rgba(248,113,113,0.1);border-radius:2px;"></div>
-          <span class="ask-price">100.03</span><span class="ask-qty">  22.50</span>
-        </div>
-        <div class="book-row">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:62%;background:rgba(248,113,113,0.15);border-radius:2px;"></div>
-          <span class="ask-price">100.02</span><span class="ask-qty">  31.00</span>
-        </div>
-        <div class="book-row" style="font-weight:600;">
-          <div style="position:absolute;top:0;left:0;bottom:0;width:100%;background:rgba(248,113,113,0.18);border-radius:2px;"></div>
-          <span class="ask-price">100.01</span><span class="ask-qty">  49.75</span>
-        </div>
+  <!-- Stats + controls -->
+  <div class="pane" id="stats-pane">
+    <div class="pane-label">stats &mdash; simulator.py</div>
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-val bid-color" id="stat-mid">100.00</div>
+        <div class="stat-lbl">mid price</div>
       </div>
-      <div class="book-side">
-        <h3 class="bid-header">Bids</h3>
-        <div class="book-row" style="font-weight:600;">
-          <div style="position:absolute;top:0;right:0;bottom:0;width:100%;background:rgba(74,222,128,0.18);border-radius:2px;"></div>
-          <span class="bid-price">100.00</span><span class="bid-qty">  52.25</span>
-        </div>
-        <div class="book-row">
-          <div style="position:absolute;top:0;right:0;bottom:0;width:58%;background:rgba(74,222,128,0.12);border-radius:2px;"></div>
-          <span class="bid-price">99.99</span><span class="bid-qty">  30.00</span>
-        </div>
-        <div class="book-row">
-          <div style="position:absolute;top:0;right:0;bottom:0;width:38%;background:rgba(74,222,128,0.1);border-radius:2px;"></div>
-          <span class="bid-price">99.98</span><span class="bid-qty">  19.75</span>
-        </div>
-        <div class="book-row">
-          <div style="position:absolute;top:0;right:0;bottom:0;width:22%;background:rgba(74,222,128,0.08);border-radius:2px;"></div>
-          <span class="bid-price">99.97</span><span class="bid-qty">  11.50</span>
-        </div>
+      <div class="stat-cell">
+        <div class="stat-val amber-color" id="stat-spread">0.01</div>
+        <div class="stat-lbl">spread</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-ops">0</div>
+        <div class="stat-lbl">orders / sec</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-fills">0</div>
+        <div class="stat-lbl">total fills</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val bid-color" id="stat-bidvol">0</div>
+        <div class="stat-lbl">bid volume</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val ask-color" id="stat-askvol">0</div>
+        <div class="stat-lbl">ask volume</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-depth">0</div>
+        <div class="stat-lbl">book depth</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-val" id="stat-ns">0</div>
+        <div class="stat-lbl">ns / order</div>
       </div>
     </div>
-    <div style="margin-top:0.75rem; font-size:0.75rem; color:#64748b; display:flex; gap:2rem;">
-      <span>Spread: <span style="color:#fbbf24;font-family:monospace;">$0.01 (1 tick)</span></span>
-      <span>Bid depth: <span style="color:#4ade80;font-family:monospace;">113.50</span></span>
-      <span>Ask depth: <span style="color:#f87171;font-family:monospace;">117.25</span></span>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">arrival rate</span>
+        <input type="range" id="ctrl-rate" min="100" max="5000" value="1000" step="100">
+        <span class="ctrl-val" id="ctrl-rate-val">1000/s</span>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">market frac</span>
+        <input type="range" id="ctrl-mkt" min="5" max="50" value="15" step="5">
+        <span class="ctrl-val" id="ctrl-mkt-val">15%</span>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">cancel frac</span>
+        <input type="range" id="ctrl-cancel" min="5" max="50" value="20" step="5">
+        <span class="ctrl-val" id="ctrl-cancel-val">20%</span>
+      </div>
+      <button class="btn-inject" id="btn-inject">inject large market order</button>
     </div>
   </div>
 
-  <!-- Throughput chart -->
-  <div class="card">
-    <h2>Throughput by Scenario (100K orders, 3 runs)</h2>
-    <div style="position:relative;height:230px;">
-      <canvas id="throughputChart"></canvas>
-    </div>
+  <!-- Price chart -->
+  <div class="pane chart-pane" id="chart-pane">
+    <canvas id="priceCanvas"></canvas>
   </div>
 
-  <!-- Benchmark table -->
-  <div class="card full">
-    <h2>Benchmark Results — benchmark.py (100,000 orders × 3 runs)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Scenario</th>
-          <th>Mean ops/s</th>
-          <th>Std</th>
-          <th>Min</th>
-          <th>Max</th>
-          <th>ns / order</th>
-          <th>Total fills</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><span class="pill pill-limit">Limit orders only</span></td>
-          <td class="num good">612,300</td>
-          <td class="num">8,200</td>
-          <td class="num">603,100</td>
-          <td class="num">621,400</td>
-          <td class="num">1,634</td>
-          <td class="num">0</td>
-        </tr>
-        <tr>
-          <td><span class="pill pill-market">Market orders only</span></td>
-          <td class="num warn">391,800</td>
-          <td class="num">5,600</td>
-          <td class="num">385,200</td>
-          <td class="num">398,000</td>
-          <td class="num">2,552</td>
-          <td class="num">47,312</td>
-        </tr>
-        <tr>
-          <td><span class="pill pill-mixed">Realistic mixed flow</span></td>
-          <td class="num good">486,100</td>
-          <td class="num">4,900</td>
-          <td class="num">480,900</td>
-          <td class="num">491,700</td>
-          <td class="num">2,057</td>
-          <td class="num">28,741</td>
-        </tr>
-        <tr>
-          <td><span class="pill pill-cancel">High cancel rate (50%)</span></td>
-          <td class="num good">541,200</td>
-          <td class="num">6,100</td>
-          <td class="num">534,800</td>
-          <td class="num">548,200</td>
-          <td class="num">1,848</td>
-          <td class="num">9,418</td>
-        </tr>
-        <tr>
-          <td><span class="pill pill-mixed">Tight spread (1 tick)</span></td>
-          <td class="num warn">418,700</td>
-          <td class="num">5,300</td>
-          <td class="num">413,100</td>
-          <td class="num">424,600</td>
-          <td class="num">2,388</td>
-          <td class="num">34,102</td>
-        </tr>
-      </tbody>
-    </table>
-    <div style="margin-top:0.75rem; font-size:0.72rem; color:#475569;">
-      Python 3.11 · Apple M2 Pro · orders pre-generated outside the timed window to isolate matching engine cost
+  <!-- Trade tape -->
+  <div class="pane" id="tape-pane">
+    <div class="pane-label">time &amp; sales &mdash; fills</div>
+    <div class="tape-header">
+      <div class="tape-col">time</div>
+      <div class="tape-col" style="text-align:right;">price</div>
+      <div class="tape-col" style="text-align:right;">qty</div>
     </div>
+    <div class="tape-scroll" id="tape-scroll"></div>
   </div>
 
-  <!-- Fill distribution chart -->
-  <div class="card">
-    <h2>Fill Size Distribution — Realistic Mixed Scenario</h2>
-    <div style="position:relative;height:230px;">
-      <canvas id="fillChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Mid-price random walk -->
-  <div class="card">
-    <h2>Simulated Mid-Price Walk — GBM (σ=0.0001/order, 10K orders)</h2>
-    <div style="position:relative;height:230px;">
-      <canvas id="midChart"></canvas>
-    </div>
-  </div>
-
-</main>
-
-<footer>order-book-engine · astew24 · UC San Diego · 2026</footer>
+</div>
 
 <script>
-  // Throughput bar chart
-  new Chart(document.getElementById('throughputChart'), {
-    type: 'bar',
-    data: {
-      labels: ['Limit only','Market only','Mixed (realistic)','High cancel','Tight spread'],
-      datasets: [{
-        data: [612300, 391800, 486100, 541200, 418700],
-        backgroundColor: ['#4ade80','#f87171','#60a5fa','#fbbf24','#a78bfa'],
-        borderWidth: 0,
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 },
-          callback: v => v >= 1e6 ? (v/1e6).toFixed(2)+'M' : (v/1e3).toFixed(0)+'K' }
-        },
-        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+// ============================================================
+// PRNG
+// ============================================================
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(Date.now() | 0);
+
+// ============================================================
+// Order Book Engine (mirrors order_book.py)
+// ============================================================
+const TICK = 0.01;
+
+function roundTick(p) { return Math.round(p / TICK) * TICK; }
+
+class OrderBook {
+  constructor() {
+    this.bids = new Map(); // price -> qty
+    this.asks = new Map();
+    this.orderIdx = new Map(); // id -> {side, price}
+    this.nextId = 1;
+    this.fills = [];
+    this.totalFills = 0;
+  }
+
+  bestBid() {
+    let best = -Infinity;
+    for (const p of this.bids.keys()) if (p > best) best = p;
+    return best === -Infinity ? null : best;
+  }
+
+  bestAsk() {
+    let best = Infinity;
+    for (const p of this.asks.keys()) if (p < best) best = p;
+    return best === Infinity ? null : best;
+  }
+
+  mid() {
+    const b = this.bestBid(), a = this.bestAsk();
+    if (b && a) return (b + a) / 2;
+    if (b) return b;
+    if (a) return a;
+    return 100;
+  }
+
+  spread() {
+    const b = this.bestBid(), a = this.bestAsk();
+    if (b && a) return roundTick(a - b);
+    return 0;
+  }
+
+  // Add limit order — sweep then rest
+  limitOrder(side, price, qty) {
+    price = roundTick(price);
+    let remaining = qty;
+    const filled = [];
+
+    if (side === 'buy') {
+      // Sweep asks
+      const askPrices = Array.from(this.asks.keys()).sort((a,b)=>a-b);
+      for (const ap of askPrices) {
+        if (ap > price || remaining <= 0) break;
+        const avail = this.asks.get(ap);
+        const trade = Math.min(avail, remaining);
+        remaining -= trade;
+        filled.push({ price: ap, qty: trade, aggressor: 'buy' });
+        this.totalFills++;
+        if (trade >= avail) this.asks.delete(ap);
+        else this.asks.set(ap, avail - trade);
+      }
+    } else {
+      // Sweep bids
+      const bidPrices = Array.from(this.bids.keys()).sort((a,b)=>b-a);
+      for (const bp of bidPrices) {
+        if (bp < price || remaining <= 0) break;
+        const avail = this.bids.get(bp);
+        const trade = Math.min(avail, remaining);
+        remaining -= trade;
+        filled.push({ price: bp, qty: trade, aggressor: 'sell' });
+        this.totalFills++;
+        if (trade >= avail) this.bids.delete(bp);
+        else this.bids.set(bp, avail - trade);
       }
     }
-  });
 
-  // Fill size distribution (histogram-style)
-  const fillBins = ['1–10','11–20','21–30','31–40','41–50','51–60','61–70','71–80','81–90','91–100'];
-  const fillCounts = [5210, 4890, 4630, 4280, 3970, 3620, 3290, 2940, 2490, 1421];
-  new Chart(document.getElementById('fillChart'), {
-    type: 'bar',
-    data: {
-      labels: fillBins,
-      datasets: [{
-        label: 'Fill count',
-        data: fillCounts,
-        backgroundColor: 'rgba(96,165,250,0.7)',
-        borderColor: '#3b82f6',
-        borderWidth: 1,
-        borderRadius: 2,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
-        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } }
+    // Rest remaining
+    if (remaining > 0) {
+      const book = side === 'buy' ? this.bids : this.asks;
+      book.set(price, (book.get(price) || 0) + remaining);
+      const id = this.nextId++;
+      this.orderIdx.set(id, { side, price });
+      return id;
+    }
+
+    return null;
+  }
+
+  marketOrder(side, qty) {
+    let remaining = qty;
+    const filled = [];
+    if (side === 'buy') {
+      const askPrices = Array.from(this.asks.keys()).sort((a,b)=>a-b);
+      for (const ap of askPrices) {
+        if (remaining <= 0) break;
+        const avail = this.asks.get(ap);
+        const trade = Math.min(avail, remaining);
+        remaining -= trade;
+        filled.push({ price: ap, qty: trade, aggressor: 'buy' });
+        this.totalFills++;
+        if (trade >= avail) this.asks.delete(ap);
+        else this.asks.set(ap, avail - trade);
+      }
+    } else {
+      const bidPrices = Array.from(this.bids.keys()).sort((a,b)=>b-a);
+      for (const bp of bidPrices) {
+        if (remaining <= 0) break;
+        const avail = this.bids.get(bp);
+        const trade = Math.min(avail, remaining);
+        remaining -= trade;
+        filled.push({ price: bp, qty: trade, aggressor: 'sell' });
+        this.totalFills++;
+        if (trade >= avail) this.bids.delete(bp);
+        else this.bids.set(bp, avail - trade);
       }
     }
-  });
+    return filled;
+  }
 
-  // Mid-price GBM walk (seeded)
-  function mulberry32(seed) {
-    return function() {
-      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  cancelRandom() {
+    if (this.orderIdx.size === 0) return;
+    const ids = Array.from(this.orderIdx.keys());
+    const id = ids[Math.floor(rng() * ids.length)];
+    const { side, price } = this.orderIdx.get(id);
+    this.orderIdx.delete(id);
+    const book = side === 'buy' ? this.bids : this.asks;
+    const qty = book.get(price);
+    if (qty) {
+      const cancel = Math.min(qty, 1 + Math.floor(rng() * 5));
+      if (cancel >= qty) book.delete(price);
+      else book.set(price, qty - cancel);
+    }
+  }
+
+  seedBook(mid) {
+    // Seed both sides around mid price
+    for (let i = 1; i <= 15; i++) {
+      const ap = roundTick(mid + i * TICK);
+      const bp = roundTick(mid - i * TICK);
+      const aQty = 5 + rng() * 50;
+      const bQty = 5 + rng() * 50;
+      this.asks.set(ap, aQty);
+      this.bids.set(bp, bQty);
+    }
+  }
+
+  topLevels(n) {
+    const askPrices = Array.from(this.asks.keys()).sort((a,b)=>a-b).slice(0, n);
+    const bidPrices = Array.from(this.bids.keys()).sort((a,b)=>b-a).slice(0, n);
+    return {
+      asks: askPrices.map(p => ({ price: p, qty: this.asks.get(p) })),
+      bids: bidPrices.map(p => ({ price: p, qty: this.bids.get(p) })),
     };
   }
-  const rng = mulberry32(0xFACEB00C);
-  let mid = 100.0;
-  const midPrices = [mid];
-  const midLabels = [0];
-  for (let i = 1; i <= 10000; i++) {
-    const shock = (rng() * 2 - 1) * 0.0001;
-    mid = mid * (1 + shock);
-    if (i % 100 === 0) { midPrices.push(+mid.toFixed(4)); midLabels.push(i); }
-  }
-  new Chart(document.getElementById('midChart'), {
-    type: 'line',
-    data: {
-      labels: midLabels,
-      datasets: [{
-        data: midPrices,
-        borderColor: '#34d399',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        tension: 0.3,
-        fill: false,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 } },
-        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 10 } } }
+}
+
+// ============================================================
+// Simulator state
+// ============================================================
+const book = new OrderBook();
+let midPrice = 100.0;
+const MID_SIGMA = 0.0002;
+
+book.seedBook(midPrice);
+
+let config = { rate: 1000, mktFrac: 0.15, cancelFrac: 0.20 };
+let opsCount = 0, lastOpsTime = performance.now();
+let opsRate = 0;
+let simTime = 0;
+
+// Price history for chart
+const CHART_LEN = 600;
+const priceHistory = [];
+
+// Tape entries
+const MAX_TAPE = 200;
+const tapeEntries = [];
+
+let lastTimestamp = performance.now();
+let accumMs = 0;
+
+// ============================================================
+// Simulation tick
+// ============================================================
+function simTick(dtMs) {
+  const ordersPerMs = config.rate / 1000;
+  const count = Math.round(ordersPerMs * dtMs + rng() * ordersPerMs * dtMs * 0.5);
+
+  for (let i = 0; i < count; i++) {
+    const r = rng();
+    if (r < config.cancelFrac) {
+      book.cancelRandom();
+    } else if (r < config.cancelFrac + config.mktFrac) {
+      const side = rng() < 0.5 ? 'buy' : 'sell';
+      const qty = 1 + Math.floor(rng() * 20);
+      const fills = book.marketOrder(side, qty);
+      for (const f of fills) {
+        addTape(f.price, f.qty, f.aggressor);
+        midPrice = f.price;
       }
+    } else {
+      // GBM mid drift
+      const shock = (rng() - 0.5) * MID_SIGMA * midPrice;
+      midPrice = roundTick(midPrice + shock);
+      if (midPrice < 50) midPrice = 50;
+      if (midPrice > 200) midPrice = 200;
+
+      const side = rng() < 0.5 ? 'buy' : 'sell';
+      const spread = 1 + Math.floor(rng() * 6);
+      const price = side === 'buy'
+        ? roundTick(midPrice - TICK * (rng() < 0.3 ? 0 : spread))
+        : roundTick(midPrice + TICK * (rng() < 0.3 ? 0 : spread));
+      const qty = 1 + rng() * 40;
+      book.limitOrder(side, price, qty);
     }
-  });
+    opsCount++;
+  }
+
+  simTime += dtMs;
+}
+
+function addTape(price, qty, aggressor) {
+  const ms = Date.now() % 86400000;
+  const hh = String(Math.floor(ms / 3600000)).padStart(2, '0');
+  const mm = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+  const ss = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+  tapeEntries.unshift({ time: `${hh}:${mm}:${ss}`, price, qty: Math.round(qty), aggressor });
+  if (tapeEntries.length > MAX_TAPE) tapeEntries.pop();
+}
+
+// ============================================================
+// DOM rendering
+// ============================================================
+const BOOK_LEVELS = 13;
+const asksContainer  = document.getElementById('asks-container');
+const bidsContainer  = document.getElementById('bids-container');
+const spreadVal      = document.getElementById('spread-val');
+const midVal         = document.getElementById('mid-val');
+const bpsVal         = document.getElementById('bps-val');
+const statMid        = document.getElementById('stat-mid');
+const statSpread     = document.getElementById('stat-spread');
+const statOps        = document.getElementById('stat-ops');
+const statFills      = document.getElementById('stat-fills');
+const statBidvol     = document.getElementById('stat-bidvol');
+const statAskvol     = document.getElementById('stat-askvol');
+const statDepth      = document.getElementById('stat-depth');
+const statNs         = document.getElementById('stat-ns');
+const hdrMid         = document.getElementById('hdr-mid');
+const hdrSpread      = document.getElementById('hdr-spread');
+const hdrFills       = document.getElementById('hdr-fills');
+const hdrOps         = document.getElementById('hdr-ops');
+const tapeScroll     = document.getElementById('tape-scroll');
+
+// Pre-allocate row elements
+function makeBookRows(container, side, n) {
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const row = document.createElement('div');
+    row.className = 'book-row';
+    const bar   = document.createElement('div');
+    bar.className = `depth-bar ${side === 'ask' ? 'ask-depth' : 'bid-depth'}`;
+    const price = document.createElement('div');
+    price.className = `book-price ${side === 'ask' ? 'ask-price' : 'bid-price'}`;
+    const qty  = document.createElement('div');
+    qty.className = 'book-qty';
+    const cum  = document.createElement('div');
+    cum.className = 'book-cum';
+    row.appendChild(bar);
+    row.appendChild(price);
+    row.appendChild(qty);
+    row.appendChild(cum);
+    container.appendChild(row);
+    rows.push({ row, bar, price, qty, cum });
+  }
+  return rows;
+}
+
+const askRows = makeBookRows(asksContainer, 'ask', BOOK_LEVELS);
+const bidRows = makeBookRows(bidsContainer, 'bid', BOOK_LEVELS);
+
+// Pre-allocate tape rows
+const TAPE_VISIBLE = 60;
+const tapeRows = [];
+for (let i = 0; i < TAPE_VISIBLE; i++) {
+  const row = document.createElement('div');
+  row.className = 'tape-row';
+  const t = document.createElement('div'); t.className = 'tape-time';
+  const p = document.createElement('div'); p.className = 'tape-price';
+  const q = document.createElement('div'); q.className = 'tape-qty';
+  row.appendChild(t); row.appendChild(p); row.appendChild(q);
+  tapeScroll.appendChild(row);
+  tapeRows.push({ row, t, p, q });
+}
+
+function renderBook() {
+  const { asks, bids } = book.topLevels(BOOK_LEVELS);
+
+  // Max qty for depth bar scaling
+  let maxQ = 1;
+  for (const l of asks) if (l.qty > maxQ) maxQ = l.qty;
+  for (const l of bids) if (l.qty > maxQ) maxQ = l.qty;
+
+  // Asks: displayed top-to-bottom from worst to best (inverted)
+  const asksSorted = asks.slice().reverse();
+  for (let i = 0; i < BOOK_LEVELS; i++) {
+    const el = askRows[i];
+    const level = asksSorted[i];
+    if (level) {
+      el.price.textContent = level.price.toFixed(2);
+      el.qty.textContent = level.qty.toFixed(1);
+      let cum = 0;
+      for (let j = i; j < asksSorted.length; j++) cum += asksSorted[j].qty;
+      el.cum.textContent = cum.toFixed(0);
+      el.bar.style.width = Math.round(level.qty / maxQ * 100) + '%';
+      el.row.style.opacity = '1';
+    } else {
+      el.price.textContent = '';
+      el.qty.textContent = '';
+      el.cum.textContent = '';
+      el.bar.style.width = '0';
+      el.row.style.opacity = '0.2';
+    }
+  }
+
+  // Bids: best at top
+  for (let i = 0; i < BOOK_LEVELS; i++) {
+    const el = bidRows[i];
+    const level = bids[i];
+    if (level) {
+      el.price.textContent = level.price.toFixed(2);
+      el.qty.textContent = level.qty.toFixed(1);
+      let cum = 0;
+      for (let j = 0; j <= i; j++) cum += bids[j].qty;
+      el.cum.textContent = cum.toFixed(0);
+      el.bar.style.width = Math.round(level.qty / maxQ * 100) + '%';
+      el.row.style.opacity = '1';
+    } else {
+      el.price.textContent = '';
+      el.qty.textContent = '';
+      el.cum.textContent = '';
+      el.bar.style.width = '0';
+      el.row.style.opacity = '0.2';
+    }
+  }
+
+  const mid   = book.mid();
+  const sp    = book.spread();
+  const bps   = mid > 0 ? (sp / mid * 10000).toFixed(1) : '0.0';
+  spreadVal.textContent = sp.toFixed(2);
+  midVal.textContent = mid.toFixed(2);
+  bpsVal.textContent = bps;
+
+  // Stats
+  const bb = book.bestBid(), ba = book.bestAsk();
+  let bidVol = 0, askVol = 0;
+  for (const [, q] of book.bids) bidVol += q;
+  for (const [, q] of book.asks) askVol += q;
+
+  statMid.textContent    = mid.toFixed(2);
+  statSpread.textContent = sp.toFixed(2);
+  statOps.textContent    = opsRate >= 1000 ? (opsRate/1000).toFixed(1)+'K' : opsRate;
+  statFills.textContent  = book.totalFills >= 1000 ? (book.totalFills/1000).toFixed(1)+'K' : book.totalFills;
+  statBidvol.textContent = Math.round(bidVol);
+  statAskvol.textContent = Math.round(askVol);
+  statDepth.textContent  = book.bids.size + book.asks.size;
+  statNs.textContent     = opsRate > 0 ? Math.round(1e9 / opsRate) : '-';
+
+  hdrMid.textContent    = mid.toFixed(2);
+  hdrSpread.textContent = sp.toFixed(2);
+  hdrFills.textContent  = book.totalFills;
+  hdrOps.textContent    = opsRate >= 1000 ? (opsRate/1000).toFixed(1)+'K' : opsRate;
+}
+
+function renderTape() {
+  const n = Math.min(tapeEntries.length, TAPE_VISIBLE);
+  for (let i = 0; i < TAPE_VISIBLE; i++) {
+    const el = tapeRows[i];
+    if (i < n) {
+      const e = tapeEntries[i];
+      el.t.textContent = e.time;
+      el.p.textContent = e.price.toFixed(2);
+      el.q.textContent = e.qty;
+      el.row.className = `tape-row tape-${e.aggressor === 'buy' ? 'buy' : 'sell'}`;
+      el.row.style.opacity = Math.max(0.3, 1 - i * 0.015).toString();
+    } else {
+      el.t.textContent = '';
+      el.p.textContent = '';
+      el.q.textContent = '';
+      el.row.style.opacity = '0';
+    }
+  }
+}
+
+// ============================================================
+// Price chart (canvas)
+// ============================================================
+const priceCanvas = document.getElementById('priceCanvas');
+let chartCtx = null;
+
+function resizeChart() {
+  const parent = priceCanvas.parentElement;
+  priceCanvas.width = parent.offsetWidth;
+  priceCanvas.height = parent.offsetHeight;
+  chartCtx = priceCanvas.getContext('2d');
+}
+
+function renderChart() {
+  if (!chartCtx) return;
+  const W = priceCanvas.width, H = priceCanvas.height;
+  if (W === 0 || H === 0) return;
+  const ctx = chartCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  const data = priceHistory;
+  if (data.length < 2) return;
+
+  let minP = Infinity, maxP = -Infinity;
+  for (const p of data) { if (p < minP) minP = p; if (p > maxP) maxP = p; }
+  const range = maxP - minP || 0.01;
+  const padH = H * 0.12;
+
+  const toY = p => padH + (1 - (p - minP) / range) * (H - padH * 2);
+  const toX = i => (i / (CHART_LEN - 1)) * W;
+
+  // Grid lines
+  ctx.strokeStyle = '#141820';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = padH + i * (H - padH * 2) / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Price line
+  ctx.strokeStyle = '#00c853';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = toX(data.length < CHART_LEN ? i : i + (CHART_LEN - data.length));
+    const y = toY(data[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#3a4558';
+  ctx.font = '9px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(maxP.toFixed(2), 4, padH + 9);
+  ctx.fillText(minP.toFixed(2), 4, H - padH + 2);
+}
+
+// ============================================================
+// Main loop
+// ============================================================
+let frameCount = 0;
+let lastRender = 0;
+const RENDER_INTERVAL = 80; // ms
+
+function frame(ts) {
+  const dt = Math.min(ts - lastTimestamp, 100);
+  lastTimestamp = ts;
+
+  simTick(dt);
+
+  // Compute ops/s
+  const elapsed = ts - lastOpsTime;
+  if (elapsed >= 500) {
+    opsRate = Math.round(opsCount / elapsed * 1000);
+    opsCount = 0;
+    lastOpsTime = ts;
+  }
+
+  // Record price
+  frameCount++;
+  if (frameCount % 4 === 0) {
+    priceHistory.push(book.mid());
+    if (priceHistory.length > CHART_LEN) priceHistory.shift();
+  }
+
+  // Render at limited rate
+  if (ts - lastRender >= RENDER_INTERVAL) {
+    lastRender = ts;
+    renderBook();
+    renderTape();
+    renderChart();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// Controls
+// ============================================================
+const sliderRate = document.getElementById('ctrl-rate');
+const sliderMkt  = document.getElementById('ctrl-mkt');
+const sliderCancel = document.getElementById('ctrl-cancel');
+const lblRate    = document.getElementById('ctrl-rate-val');
+const lblMkt     = document.getElementById('ctrl-mkt-val');
+const lblCancel  = document.getElementById('ctrl-cancel-val');
+
+sliderRate.addEventListener('input', () => {
+  config.rate = +sliderRate.value;
+  lblRate.textContent = config.rate + '/s';
+});
+
+sliderMkt.addEventListener('input', () => {
+  config.mktFrac = +sliderMkt.value / 100;
+  lblMkt.textContent = sliderMkt.value + '%';
+});
+
+sliderCancel.addEventListener('input', () => {
+  config.cancelFrac = +sliderCancel.value / 100;
+  lblCancel.textContent = sliderCancel.value + '%';
+});
+
+document.getElementById('btn-inject').addEventListener('click', () => {
+  // Large market order: sweeps several levels
+  const side = rng() < 0.5 ? 'buy' : 'sell';
+  const qty = 200 + Math.floor(rng() * 300);
+  const fills = book.marketOrder(side, qty);
+  for (const f of fills) {
+    addTape(f.price, f.qty, f.aggressor);
+  }
+});
+
+// ============================================================
+// Init
+// ============================================================
+window.addEventListener('resize', () => {
+  resizeChart();
+  renderChart();
+});
+
+resizeChart();
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
