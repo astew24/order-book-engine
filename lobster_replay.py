@@ -1,29 +1,12 @@
 """
-lobster_replay.py — LOBSTER data replay and fill validation.
+Replay a LOBSTER message CSV into LimitOrderBook and compare fills.
 
-LOBSTER (Limit Order Book System — The Efficient Reconstructor) produces
-two CSV files per stock per day:
-  - <ticker>_<date>_<starttime>_<endtime>_message_<levels>.csv  (event stream)
-  - <ticker>_<date>_<starttime>_<endtime>_orderbook_<levels>.csv (book snapshots)
+LOBSTER message columns:
+    Time, Type, OrderID, Size, Price, Direction
+    Type: 1 submit, 2/3 cancel, 4/5 execution (visible/hidden), 7 halt.
+    Price is integer * 10000; Direction: 1 buy, -1 sell.
 
-Message file columns (LOBSTER format):
-  Time, Type, OrderID, Size, Price, Direction
-    Time      : seconds from midnight (float)
-    Type      : 1=submit limit, 2=cancel partial, 3=cancel full, 4=exec visible,
-                5=exec hidden, 7=halt/trading-halt
-    OrderID   : exchange order ID
-    Size      : number of shares
-    Price     : price * 10000 (integer representation)
-    Direction : 1=buy, -1=sell
-
-This module:
-  1. Reads LOBSTER message CSV.
-  2. Replays each event into our LimitOrderBook.
-  3. Compares reported executions (Type 4/5) against fills produced by our engine.
-  4. Prints a validation report.
-
-If you don't have real LOBSTER data, run with --generate to create a
-synthetic sample CSV for smoke-testing.
+Use --generate to write a synthetic sample CSV when real data isn't handy.
 """
 
 from __future__ import annotations
@@ -39,18 +22,12 @@ from pathlib import Path
 from order_book import LimitOrderBook, Order, OrderType, Side, Fill
 
 
-# ---------------------------------------------------------------------------
-# LOBSTER message types
-# ---------------------------------------------------------------------------
-
 MSG_SUBMIT_LIMIT   = 1
 MSG_CANCEL_PARTIAL = 2
 MSG_CANCEL_FULL    = 3
 MSG_EXEC_VISIBLE   = 4   # execution against a visible resting order
-MSG_EXEC_HIDDEN    = 5   # execution against a hidden/dark order (treated same as visible here)
-# type 7 is a trading halt — we skip it and continue replaying
-MSG_TRADING_HALT   = 7
-MSG_HALT           = 7
+MSG_EXEC_HIDDEN    = 5   # hidden/dark execution; treated the same as visible here
+MSG_HALT           = 7   # trading halt; we skip and keep replaying
 
 
 @dataclass
@@ -75,10 +52,6 @@ class ValidationResult:
     mismatched_fills: int
     unknown_order_cancels: int    # cancels for IDs our engine doesn't know
 
-
-# ---------------------------------------------------------------------------
-# CSV parsing
-# ---------------------------------------------------------------------------
 
 def parse_lobster_csv(path: Path) -> list[LobsterMessage]:
     messages: list[LobsterMessage] = []
@@ -105,10 +78,6 @@ def parse_lobster_csv(path: Path) -> list[LobsterMessage]:
             ))
     return messages
 
-
-# ---------------------------------------------------------------------------
-# Replay engine
-# ---------------------------------------------------------------------------
 
 def replay(messages: list[LobsterMessage], verbose: bool = False, qty_tol: float = 0.05) -> ValidationResult:
     book = LimitOrderBook()
@@ -173,10 +142,6 @@ def replay(messages: list[LobsterMessage], verbose: bool = False, qty_tol: float
     )
 
 
-# ---------------------------------------------------------------------------
-# Synthetic sample CSV generator
-# ---------------------------------------------------------------------------
-
 def generate_sample_csv(path: Path, n_messages: int = 1000, seed: int = 42):
     """Write a synthetic LOBSTER-format message CSV for smoke testing."""
     rng = random.Random(seed)
@@ -222,10 +187,6 @@ def generate_sample_csv(path: Path, n_messages: int = 1000, seed: int = 42):
     print(f"[generate] Wrote {len(rows)} messages to {path}")
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
 def print_result(r: ValidationResult):
     print("\n" + "="*50)
     print("  LOBSTER REPLAY VALIDATION REPORT")
@@ -236,7 +197,7 @@ def print_result(r: ValidationResult):
     print(f"    Unknown order cancels: {r.unknown_order_cancels:,}")
     print(f"  Executions (LOBSTER)  : {r.executions_reported:,}")
     print(f"  Fills (our engine)    : {r.fills_generated:,}")
-    status = "PASS ✓" if r.matched_fills else "WARN — qty mismatch"
+    status = "PASS" if r.matched_fills else "WARN (qty mismatch)"
     print(f"  Qty match status      : {status}")
     print("="*50 + "\n")
 

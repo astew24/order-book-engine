@@ -1,16 +1,9 @@
 """
-simulator.py — Poisson arrival process order flow simulator.
+Poisson-arrival order flow simulator.
 
-Models a realistic order stream:
-  - Order arrivals follow a Poisson process (exponential inter-arrival times)
-  - Order side (buy/sell) is symmetric by default
-  - Limit order prices are drawn from a normal distribution around mid-price
-  - Market order fraction controls fraction of aggressive orders
-  - Cancellations are generated for a fraction of open resting orders
-  - Mid-price follows a geometric Brownian motion random walk
-
-Note: set SimConfig.seed for fully reproducible order streams; useful for
-deterministic benchmark comparisons and unit tests against known fills.
+Inter-arrival times are exponential, sides are symmetric by default, limit
+prices are drawn from a normal around mid, and mid-price drifts via GBM.
+Set SimConfig.seed for a reproducible stream.
 """
 
 from __future__ import annotations
@@ -24,10 +17,6 @@ import numpy as np
 
 from order_book import LimitOrderBook, Order, Side, OrderType, Fill
 
-
-# ---------------------------------------------------------------------------
-# Simulator configuration
-# ---------------------------------------------------------------------------
 
 @dataclass
 class SimConfig:
@@ -56,10 +45,6 @@ class SimConfig:
     seed: int | None = None
 
 
-# ---------------------------------------------------------------------------
-# Simulator
-# ---------------------------------------------------------------------------
-
 class OrderFlowSimulator:
     """
     Generates a stream of Order objects following a Poisson arrival process.
@@ -84,11 +69,7 @@ class OrderFlowSimulator:
         return self._mid
 
     def reset(self) -> None:
-        """Reset simulator state — mid-price, order counter, and open order list.
-
-        Useful for running multiple independent simulation runs on the same
-        config without creating a new instance each time.
-        """
+        """Reset RNG, mid-price, and order counter to the config's initial state."""
         self._rng = np.random.default_rng(self.config.seed)
         self._random = random.Random(self.config.seed)
         self._mid = self.config.initial_mid
@@ -117,8 +98,7 @@ class OrderFlowSimulator:
         # Decide order type
         r = self._random.random()
         if r < cfg.cancel_frac and self._open_order_ids:
-            # Cancel a random resting order (represented as an order with CANCEL type).
-            # The cancel carries the target's order_id so the book can find and remove it.
+            # Cancel reuses the target's order_id so the book can find it.
             target_id = self._random.choice(self._open_order_ids)
             self._open_order_ids.remove(target_id)
             return Order(
@@ -135,7 +115,7 @@ class OrderFlowSimulator:
             qty = self._rng.uniform(cfg.min_qty, cfg.max_qty)
             return Order.market(side, qty=round(qty, 2), order_id=self._next_order_id(), symbol=cfg.symbol)
 
-        # Limit order — price centered around mid ± half-spread
+        # Limit order: center around mid +/- half-spread, jitter in ticks.
         half_spread = (cfg.spread_ticks / 2) * cfg.tick_size
         if side == Side.BUY:
             center = self._mid - half_spread
@@ -161,10 +141,7 @@ class OrderFlowSimulator:
             yield self.next_order()
 
     def stream_realtime(self, n: int) -> Iterator[Order]:
-        """
-        Yield n orders with real inter-arrival delays (Poisson process).
-        Inter-arrival time ~ Exponential(1 / arrival_rate).
-        """
+        """Yield n orders, sleeping ~Exponential(1/arrival_rate) between them."""
         cfg = self.config
         for _ in range(n):
             delay = self._rng.exponential(1.0 / cfg.arrival_rate)
@@ -177,10 +154,7 @@ class OrderFlowSimulator:
         n: int,
         realtime: bool = False,
     ) -> dict:
-        """
-        Submit n simulated orders into `book`.
-        Returns summary statistics.
-        """
+        """Submit n simulated orders into `book` and return a stats summary."""
         gen = self.stream_realtime(n) if realtime else self.stream(n)
         t0 = time.perf_counter()
         for order in gen:
