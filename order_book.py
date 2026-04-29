@@ -1,14 +1,9 @@
 """
-order_book.py — Limit Order Book matching engine, built from scratch.
+Limit order book with price-time priority.
 
-Core design:
-  - bids: SortedDict (desc price) → deque of Order objects  (FIFO within level)
-  - asks: SortedDict (asc price)  → deque of Order objects
-  - O(1) best-bid / best-ask via SortedDict.peekitem()
-  - Supports LIMIT, MARKET, and CANCEL order types
-  - Emits Fill events for every match
-
-No external matching engine libraries are used.
+Bids and asks are held in SortedDicts keyed by price (bids use negated keys so
+peekitem(0) returns the best bid). Within each price level, orders sit in a
+deque for FIFO matching.
 """
 
 from __future__ import annotations
@@ -22,10 +17,6 @@ from typing import Iterator, Optional
 
 from sortedcontainers import SortedDict
 
-
-# ---------------------------------------------------------------------------
-# Enums and data classes
-# ---------------------------------------------------------------------------
 
 class Side(Enum):
     BUY = auto()
@@ -107,48 +98,29 @@ class BookStats:
     total_ask_qty: float
 
 
-# ---------------------------------------------------------------------------
-# Limit Order Book
-# ---------------------------------------------------------------------------
-
 class LimitOrderBook:
     """Price-time priority limit order book.
 
-    bids: SortedDict with negated prices as keys so peekitem(0) → best bid.
-    asks: SortedDict with positive prices as keys so peekitem(0) → best ask.
-
-    Order of operations for a new order:
-      1. Market orders sweep the opposite side until filled or the book is empty.
-      2. Limit orders match against resting orders at the same or better price,
-         then rest at their limit price if unfilled quantity remains.
-      3. Cancels remove the resting order by order_id in O(1).
+    Market orders sweep the opposite side until filled or the book is empty.
+    Limit orders match at same-or-better prices and rest at their limit if any
+    quantity is left. Cancels remove a resting order by id.
     """
 
     def __init__(self, symbol: str = "AAAA"):
         self.symbol = symbol
-        # price → deque[Order]
-        # bids stored with negated keys for descending order
+        # bids are keyed by -price so the smallest key is the best bid
         self._bids: SortedDict[float, deque[Order]] = SortedDict()
         self._asks: SortedDict[float, deque[Order]] = SortedDict()
-        # order_id → Order (for cancel lookup)
+        # order_id -> (book_side_dict, price_key) for cancels
         self._orders: dict[str, tuple[SortedDict, float]] = {}
         self.fills: list[Fill] = []
         self._fill_callbacks: list = []
 
-    # ------------------------------------------------------------------ #
-    # Public API                                                           #
-    # ------------------------------------------------------------------ #
-
     def add_fill_callback(self, fn):
-        """Register a callable(Fill) that fires on each match.
-
-        Multiple callbacks can be registered — they're called in registration order.
-        Useful for streaming fills to a downstream consumer without polling self.fills.
-        """
+        """Register fn(Fill) to be called on every match."""
         self._fill_callbacks.append(fn)
 
     def submit(self, order: Order) -> list[Fill]:
-        """Route an order to the appropriate handler and return generated fills."""
         if order.order_type == OrderType.CANCEL:
             self.cancel(order.order_id)
             return []
@@ -159,10 +131,10 @@ class LimitOrderBook:
         raise ValueError(f"Unknown order type: {order.order_type}")
 
     def cancel(self, order_id: str) -> bool:
-        """Cancel a resting limit order by order_id. Returns True if found and removed.
+        """Remove a resting order. Returns True if the id was found.
 
-        O(1) lookup via _orders dict, then O(k) scan of the price-level deque where
-        k is the number of orders at that level — usually very small in practice.
+        Lookup is O(1) but the deque scan at the price level is O(k); k is the
+        number of orders at that price, which stays small in practice.
         """
         if order_id not in self._orders:
             return False
@@ -186,14 +158,12 @@ class LimitOrderBook:
         return removed
 
     def best_bid(self) -> Optional[float]:
-        """Highest resting buy price, or None."""
         if not self._bids:
             return None
         neg_price, _ = self._bids.peekitem(0)
         return -neg_price
 
     def best_ask(self) -> Optional[float]:
-        """Lowest resting sell price, or None."""
         if not self._asks:
             return None
         price, _ = self._asks.peekitem(0)
@@ -217,26 +187,13 @@ class LimitOrderBook:
         )
 
     def bid_levels(self) -> list[tuple[float, float]]:
-        """Return [(price, total_qty)] sorted best-to-worst bid."""
-        return [
-            (-k, sum(o.remaining for o in q))
-            for k, q in self._bids.items()
-        ]
+        return [(-k, sum(o.remaining for o in q)) for k, q in self._bids.items()]
 
     def ask_levels(self) -> list[tuple[float, float]]:
-        """Return [(price, total_qty)] sorted best-to-worst ask."""
-        return [
-            (k, sum(o.remaining for o in q))
-            for k, q in self._asks.items()
-        ]
+        return [(k, sum(o.remaining for o in q)) for k, q in self._asks.items()]
 
     def depth(self, levels: int = 5) -> dict:
-        """Return top N bid and ask levels as a dict."""
         return {"bids": self.bid_levels()[:levels], "asks": self.ask_levels()[:levels]}
-
-    # ------------------------------------------------------------------ #
-    # Internal matching                                                    #
-    # ------------------------------------------------------------------ #
 
     def _process_limit(self, order: Order) -> list[Fill]:
         fills: list[Fill] = []
@@ -251,15 +208,15 @@ class LimitOrderBook:
             self._rest(order)
         return fills
 
-    # Guard: if book is empty on market order side, remaining qty is marked PARTIALLY_FILLED and discarded — previously could loop indefinitely on thin books
     def _process_market(self, order: Order) -> list[Fill]:
-        """Market order: match at any price, no resting."""
         if order.side == Side.BUY:
             fills = self._match_buy(order, limit_price=float("inf"))
         else:
             fills = self._match_sell(order, limit_price=0.0)
+        # If the book is too thin to fully fill, we drop the remainder rather
+        # than rest a market order. Earlier version looped forever here.
         if order.remaining > 0:
-            order.status = Status.PARTIALLY_FILLED  # unmatched portion lost
+            order.status = Status.PARTIALLY_FILLED
         return fills
 
     def _match_buy(self, aggressor: Order, limit_price: float) -> list[Fill]:
@@ -289,7 +246,6 @@ class LimitOrderBook:
         book_side: SortedDict,
         neg_key: bool = False,
     ) -> list[Fill]:
-        """Match aggressor against all resting orders at this price level."""
         fills: list[Fill] = []
         key = -exec_price if neg_key else exec_price
 
@@ -329,7 +285,6 @@ class LimitOrderBook:
         return fills
 
     def _rest(self, order: Order):
-        """Place an unmatched limit order onto the resting book."""
         if order.side == Side.BUY:
             key = -order.price  # type: ignore[operator]
             book = self._bids

@@ -1,13 +1,9 @@
 """
-benchmark.py — Measure orders/second throughput of the matching engine.
+Throughput benchmarks for the matching engine.
 
-Runs several scenarios and prints a report:
-  - Limit orders only (resting book builds up)
-  - Market orders only (drains the book)
-  - Mixed realistic flow (matches SimConfig defaults)
-  - Stress: 100% cancel rate (tests cancel path)
+Runs a handful of flow scenarios (all-limit, all-market, mixed, high-cancel,
+tight-spread) and prints ops/sec plus ns/order per run.
 
-Usage:
     python benchmark.py
     python benchmark.py --orders 500000 --runs 3
 """
@@ -21,10 +17,6 @@ from typing import Callable
 from order_book import LimitOrderBook, Order, Side
 from simulator import OrderFlowSimulator, SimConfig
 
-
-# ---------------------------------------------------------------------------
-# Benchmark harness
-# ---------------------------------------------------------------------------
 
 @dataclass
 class BenchmarkResult:
@@ -106,7 +98,7 @@ def print_report(results: list[BenchmarkResult]):
         f"{'Std':>10} {'Min':>10} {'Max':>10} {'ns/order':>10} {'Fills':>8}"
     )
     print("\n" + "=" * len(header))
-    print("  ORDER BOOK ENGINE — BENCHMARK RESULTS")
+    print("  Benchmark results")
     print("=" * len(header))
     print(header)
     print("-" * len(header))
@@ -118,10 +110,6 @@ def print_report(results: list[BenchmarkResult]):
         )
     print("=" * len(header) + "\n")
 
-
-# ---------------------------------------------------------------------------
-# Scenarios
-# ---------------------------------------------------------------------------
 
 SCENARIOS = [
     (

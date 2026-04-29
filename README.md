@@ -1,131 +1,81 @@
 # order-book-engine
 
-A small Python limit order book and matching engine for studying market microstructure mechanics.
+A single-process limit order book matching engine in Python, plus a
+Poisson order-flow simulator, a throughput benchmark, and a LOBSTER CSV
+replayer.
 
-[Live demo](https://astew24.github.io/order-book-engine/) | [GitHub repo](https://github.com/astew24/order-book-engine)
+[Live demo](https://astew24.github.io/order-book-engine/)
 
-## Overview
+## What's in here
 
-This repo implements the core pieces of a limit order book from scratch:
+- `order_book.py` - the matching engine. Price-time priority, limit /
+  market / cancel.
+- `simulator.py` - Poisson arrivals with GBM mid-price drift.
+- `benchmark.py` - runs a few flow scenarios and prints ops/sec.
+- `lobster_replay.py` - parses LOBSTER message CSVs and replays them into
+  the book.
 
-- price-time priority matching
-- limit, market, and cancel orders
-- FIFO queues at each price level
-- best bid and best ask lookup through sorted price levels
-- simulated order flow with configurable market and cancel activity
-- LOBSTER-style message replay for working with academic order book data
-- a small benchmark script for comparing scenarios
-
-The project is meant to show clean trading-systems engineering in Python. It is not an exchange-grade engine and does not try to hide that Python has limits for low-latency production work.
-
-## Why I Built This
-
-I wanted to understand the mechanics behind the market data and execution systems that quant strategies depend on. The goal was to build the matching logic directly instead of treating the order book as a black box.
-
-## What It Does
-
-```text
-incoming order
-      |
-      v
-validate type and side
-      |
-      v
-match against the opposite side at the best available price
-      |
-      v
-emit fills for executed quantity
-      |
-      v
-rest any remaining limit quantity at its price level
-```
-
-The matching engine keeps bids and asks in separate sorted maps. Each price level stores orders in a `deque`, so orders at the same price are matched in arrival order.
-
-## Project Structure
-
-```text
-order-book-engine/
-|-- order_book.py       # core Order, Fill, and LimitOrderBook logic
-|-- simulator.py        # synthetic order flow generator
-|-- benchmark.py        # throughput benchmark scenarios
-|-- lobster_replay.py   # LOBSTER message CSV replay
-|-- sample_lobster.csv  # small replay sample
-|-- docs/index.html     # static browser demo
-`-- requirements.txt
-```
-
-## How to Run
+## Getting started
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-Run the benchmark:
-
-```bash
 python benchmark.py
-python benchmark.py --orders 500000 --runs 3
-```
+python benchmark.py --orders 500000 --runs 5
 
-Run one benchmark scenario:
-
-```bash
-python benchmark.py --scenario "mixed" --orders 100000
-```
-
-Generate and replay a synthetic LOBSTER-style message file:
-
-```bash
 python lobster_replay.py --generate --n 5000
-python lobster_replay.py --file sample_lobster.csv
+python lobster_replay.py --file AAPL_2012-06-21_34200000_57600000_message_5.csv
 ```
-
-Use the engine from Python:
 
 ```python
-from order_book import LimitOrderBook, Order, Side
+from order_book import LimitOrderBook
+from simulator import OrderFlowSimulator, SimConfig
 
-book = LimitOrderBook(symbol="AAPL")
-
-book.submit(Order.limit(Side.BUY, price=150.00, qty=100))
-book.submit(Order.limit(Side.SELL, price=150.05, qty=80))
-fills = book.submit(Order.market(Side.BUY, qty=25))
-
-print(fills)
-print(book.depth(levels=5))
+book = LimitOrderBook()
+sim = OrderFlowSimulator(SimConfig(arrival_rate=5000, initial_mid=150.0))
+print(sim.run_into_book(book, n=10_000))
 ```
 
-## Design Notes
+## Data structure
 
-- `SortedDict` keeps price levels ordered while still supporting inserts and deletes.
-- Bid prices are stored as negative keys so the best bid can be read from the front of the sorted map.
-- Each price level uses a `deque` to preserve FIFO behavior.
-- Cancel lookup uses an `order_id` index to find the relevant price level before scanning that level.
-- The simulator uses a configurable order mix rather than trying to model a specific venue exactly.
+Bids and asks are `SortedDict[float, deque[Order]]`. Bid keys are negated
+so `peekitem(0)` returns the best bid without a custom comparator. Within
+a price level, orders sit in a `deque` for O(1) FIFO.
 
-## Static Demo
+A separate `order_id -> (book_side, price_key)` map gives cancels an O(1)
+level lookup. Removal inside the deque is O(k), but k is the per-level
+depth and stays small in practice.
 
-`docs/index.html` is a lightweight browser demo that visualizes a simulated order book and trade tape. It is useful for explaining the project quickly, but the source of truth for matching behavior is `order_book.py`.
+## Matching
 
-To preview it locally, open:
+A buy limit at price P sweeps asks priced `<= P` in price-then-time order
+and rests the remainder at P. Sells are symmetric. Market orders match
+against +/- infinity so they sweep until the book is exhausted; leftover
+quantity is dropped rather than rested. (An earlier version looped on
+this and deadlocked.)
 
-```text
-docs/index.html
-```
+## LOBSTER format
 
-## Limitations
+Message columns: `Time, Type, OrderID, Size, Price, Direction`.
 
-- Single-threaded Python implementation.
-- No network gateway, persistence layer, risk checks, auctions, pegged orders, or hidden liquidity.
-- Benchmark numbers depend heavily on hardware, Python version, scenario mix, and warm-up settings.
-- LOBSTER replay is a learning tool, not a full exchange reconstruction engine.
+| Type | Meaning |
+|------|---------|
+| 1 | Submit limit |
+| 2 | Partial cancel |
+| 3 | Full cancel |
+| 4 | Execution (visible) |
+| 5 | Execution (hidden) |
+| 7 | Trading halt |
 
-## Next Steps
+Price is stored as integer * 10000. Direction: 1 buy, -1 sell. Real data
+from lobsterdata.com.
 
-- Add a clearer separation between the matching core and simulation utilities.
-- Expand tests around partial fills, cancels, and multi-level sweeps.
-- Add optional CSV output from benchmarks for easier comparison.
-- Document more edge cases in the LOBSTER replay path.
+## Design notes
+
+- `sortedcontainers.SortedDict` over `heapq` because cancels need
+  targeted removal at arbitrary price levels; a heap doesn't give you
+  that cheaply.
+- Single-threaded on purpose. In production you'd put this behind a
+  queue.
+- `deque` rather than `list` for the per-level FIFO (O(1) `popleft`).
